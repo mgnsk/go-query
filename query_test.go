@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func newQuery() Expression {
+func newQuery() Expr {
 	return NOT{
 		OR{
 			Assertion(func(_ context.Context) bool {
@@ -28,8 +28,8 @@ func newQuery() Expression {
 					// time.Sleep(1 * time.Millisecond)
 					return true
 				}),
-				IF(
-					AND{
+				IF{
+					OR{
 						Assertion(func(_ context.Context) bool {
 							// time.Sleep(1 * time.Millisecond)
 							return false
@@ -47,7 +47,7 @@ func newQuery() Expression {
 						// time.Sleep(1 * time.Millisecond)
 						return true
 					}),
-				),
+				},
 			}.Race(),
 		}.Race(),
 	}
@@ -55,8 +55,8 @@ func newQuery() Expression {
 
 func TestQuery(t *testing.T) {
 	s := newQuery()
-	if s.Eval(context.TODO()) != false {
-		t.Fatal("expected false")
+	if s.Eval(context.TODO()) != true {
+		t.Fatal("expected true")
 	}
 }
 

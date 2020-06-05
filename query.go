@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 )
 
-// Expression evaluates to a boolean.
-type Expression interface {
+// Expr evaluates to a boolean.
+type Expr interface {
 	Eval(context.Context) bool
 }
 
@@ -20,7 +20,7 @@ func (a Assertion) Eval(ctx context.Context) bool {
 }
 
 // Statement is a list of expressions.
-type Statement []Expression
+type Statement []Expr
 
 // Eval the raw statement.
 func (s Statement) Eval(ctx context.Context) bool {
@@ -44,11 +44,11 @@ func (s AND) Eval(ctx context.Context) bool {
 }
 
 // Race the AND statement expressions.
-func (s AND) Race() Expression {
+func (s AND) Race() Expr {
 	return Assertion(func(ctx context.Context) bool {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
-		return !race(ctx, Statement(s), func(ctx context.Context, exp Expression) bool {
+		return !race(ctx, Statement(s), func(ctx context.Context, exp Expr) bool {
 			if !exp.Eval(ctx) {
 				cancel()
 				return true
@@ -72,11 +72,11 @@ func (s OR) Eval(ctx context.Context) bool {
 }
 
 // Race the OR statement.
-func (s OR) Race() Expression {
+func (s OR) Race() Expr {
 	return Assertion(func(ctx context.Context) bool {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
-		return race(ctx, Statement(s), func(ctx context.Context, exp Expression) bool {
+		return race(ctx, Statement(s), func(ctx context.Context, exp Expr) bool {
 			if exp.Eval(ctx) {
 				cancel()
 				return true
@@ -94,20 +94,23 @@ func (s NOT) Eval(ctx context.Context) bool {
 	return !Statement(s).Eval(ctx)
 }
 
-// IF expression evaluates then expression if test evaluates to true,
-// otherwise it evaluates els expression.
-func IF(test, then, els Expression) Expression {
-	return Assertion(func(ctx context.Context) bool {
-		if test.Eval(ctx) {
-			return then.Eval(ctx)
-		}
-		return els.Eval(ctx)
-	})
+// IF statement builds a condition.
+type IF struct {
+	test Expr
+	then Expr
+	els  Expr
+}
+
+func (s IF) Eval(ctx context.Context) bool {
+	if s.test.Eval(ctx) {
+		return s.then.Eval(ctx)
+	}
+	return s.els.Eval(ctx)
 }
 
 // race until any expression in q returns true, then return true, trying to cancel other evaluators,
 // otherwise return false.
-func race(ctx context.Context, q Statement, eval func(context.Context, Expression) bool) bool {
+func race(ctx context.Context, q Statement, eval func(context.Context, Expr) bool) bool {
 	var wg sync.WaitGroup
 	isTrue := uint64(0)
 
