@@ -49,11 +49,7 @@ func (s AND) Race() Expr {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		return !race(ctx, Statement(s), func(ctx context.Context, exp Expr) bool {
-			if !exp.Eval(ctx) {
-				cancel()
-				return true
-			}
-			return false
+			return !exp.Eval(ctx)
 		})
 	})
 }
@@ -77,11 +73,7 @@ func (s OR) Race() Expr {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		return race(ctx, Statement(s), func(ctx context.Context, exp Expr) bool {
-			if exp.Eval(ctx) {
-				cancel()
-				return true
-			}
-			return false
+			return exp.Eval(ctx)
 		})
 	})
 }
